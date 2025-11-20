@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Plus, Pencil, Trash2, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -22,15 +23,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Member {
   id: string;
@@ -48,28 +43,45 @@ interface Dialect {
   name: string;
 }
 
+interface Group {
+  id: string;
+  name: string;
+}
+
+interface MemberWithRelations extends Member {
+  groups: string[];
+  dialects: string[];
+}
+
 export default function Members() {
-  const [members, setMembers] = useState<Member[]>([]);
+  const [members, setMembers] = useState<MemberWithRelations[]>([]);
   const [dialects, setDialects] = useState<Dialect[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<MemberWithRelations | null>(null);
+  const [smsRecipient, setSmsRecipient] = useState<MemberWithRelations | null>(null);
+  const [smsMessage, setSmsMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     location: "",
     phone: "",
-    dialect_id: "",
     occupation: "",
     is_active: true,
+    selectedGroups: [] as string[],
+    selectedDialects: [] as string[],
   });
   const { toast } = useToast();
 
   useEffect(() => {
     fetchMembers();
     fetchDialects();
+    fetchGroups();
   }, []);
 
   const fetchMembers = async () => {
-    const { data, error } = await supabase
+    const { data: membersData, error } = await supabase
       .from("members")
       .select("*")
       .order("created_at", { ascending: false });
@@ -80,9 +92,30 @@ export default function Members() {
         description: "Failed to load members",
         variant: "destructive",
       });
-    } else {
-      setMembers(data || []);
+      return;
     }
+
+    const membersWithRelations = await Promise.all(
+      (membersData || []).map(async (member) => {
+        const { data: memberGroups } = await supabase
+          .from("member_groups")
+          .select("group_id")
+          .eq("member_id", member.id);
+
+        const { data: memberDialects } = await supabase
+          .from("member_dialects")
+          .select("dialect_id")
+          .eq("member_id", member.id);
+
+        return {
+          ...member,
+          groups: memberGroups?.map((mg) => mg.group_id) || [],
+          dialects: memberDialects?.map((md) => md.dialect_id) || [],
+        };
+      })
+    );
+
+    setMembers(membersWithRelations);
   };
 
   const fetchDialects = async () => {
@@ -102,6 +135,23 @@ export default function Members() {
     }
   };
 
+  const fetchGroups = async () => {
+    const { data, error } = await supabase
+      .from("groups")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load groups",
+        variant: "destructive",
+      });
+    } else {
+      setGroups(data || []);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -118,42 +168,69 @@ export default function Members() {
       name: formData.name,
       location: formData.location || null,
       phone: formData.phone,
-      dialect_id: formData.dialect_id || null,
       occupation: formData.occupation || null,
       is_active: formData.is_active,
     };
 
-    if (editingMember) {
-      const { error } = await supabase
-        .from("members")
-        .update(memberData)
-        .eq("id", editingMember.id);
+    try {
+      let memberId: string;
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to update member",
-          variant: "destructive",
-        });
-      } else {
-        toast({ title: "Success", description: "Member updated successfully" });
-        fetchMembers();
-        closeDialog();
-      }
-    } else {
-      const { error } = await supabase.from("members").insert(memberData);
+      if (editingMember) {
+        const { error } = await supabase
+          .from("members")
+          .update(memberData)
+          .eq("id", editingMember.id);
 
-      if (error) {
-        toast({
-          title: "Error",
-          description: "Failed to create member",
-          variant: "destructive",
-        });
+        if (error) throw error;
+        memberId = editingMember.id;
+
+        await supabase.from("member_groups").delete().eq("member_id", memberId);
+        await supabase.from("member_dialects").delete().eq("member_id", memberId);
       } else {
-        toast({ title: "Success", description: "Member created successfully" });
-        fetchMembers();
-        closeDialog();
+        const { data, error } = await supabase
+          .from("members")
+          .insert(memberData)
+          .select()
+          .single();
+
+        if (error) throw error;
+        memberId = data.id;
       }
+
+      if (formData.selectedGroups.length > 0) {
+        await supabase.from("member_groups").insert(
+          formData.selectedGroups.map((groupId) => ({
+            member_id: memberId,
+            group_id: groupId,
+          }))
+        );
+      }
+
+      if (formData.selectedDialects.length > 0) {
+        await supabase.from("member_dialects").insert(
+          formData.selectedDialects.map((dialectId) => ({
+            member_id: memberId,
+            dialect_id: dialectId,
+          }))
+        );
+      }
+
+      toast({
+        title: "Success",
+        description: editingMember
+          ? "Member updated successfully"
+          : "Member created successfully",
+      });
+      fetchMembers();
+      closeDialog();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: editingMember
+          ? "Failed to update member"
+          : "Failed to create member",
+        variant: "destructive",
+      });
     }
   };
 
@@ -174,16 +251,17 @@ export default function Members() {
     }
   };
 
-  const openDialog = (member?: Member) => {
+  const openDialog = (member?: MemberWithRelations) => {
     if (member) {
       setEditingMember(member);
       setFormData({
         name: member.name,
         location: member.location || "",
         phone: member.phone,
-        dialect_id: member.dialect_id || "",
         occupation: member.occupation || "",
         is_active: member.is_active,
+        selectedGroups: member.groups,
+        selectedDialects: member.dialects,
       });
     } else {
       setEditingMember(null);
@@ -191,9 +269,10 @@ export default function Members() {
         name: "",
         location: "",
         phone: "",
-        dialect_id: "",
         occupation: "",
         is_active: true,
+        selectedGroups: [],
+        selectedDialects: [],
       });
     }
     setIsDialogOpen(true);
@@ -206,16 +285,94 @@ export default function Members() {
       name: "",
       location: "",
       phone: "",
-      dialect_id: "",
       occupation: "",
       is_active: true,
+      selectedGroups: [],
+      selectedDialects: [],
     });
   };
 
-  const getDialectName = (dialectId: string | null) => {
-    if (!dialectId) return "-";
-    const dialect = dialects.find((d) => d.id === dialectId);
-    return dialect?.name || "-";
+  const openSmsDialog = (member: MemberWithRelations) => {
+    setSmsRecipient(member);
+    setSmsMessage("");
+    setIsSmsDialogOpen(true);
+  };
+
+  const closeSmsDialog = () => {
+    setIsSmsDialogOpen(false);
+    setSmsRecipient(null);
+    setSmsMessage("");
+  };
+
+  const handleSendSms = async () => {
+    if (!smsRecipient || !smsMessage.trim()) {
+      toast({
+        title: "Error",
+        description: "Message cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSending(true);
+
+    try {
+      await supabase.from("message_history").insert({
+        message_text: smsMessage,
+        recipient_count: 1,
+        status: "sent",
+        groups: null,
+        dialects: null,
+      });
+
+      toast({
+        title: "Success",
+        description: `Message sent to ${smsRecipient.name}`,
+      });
+      closeSmsDialog();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const toggleGroup = (groupId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedGroups: prev.selectedGroups.includes(groupId)
+        ? prev.selectedGroups.filter((id) => id !== groupId)
+        : [...prev.selectedGroups, groupId],
+    }));
+  };
+
+  const toggleDialect = (dialectId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedDialects: prev.selectedDialects.includes(dialectId)
+        ? prev.selectedDialects.filter((id) => id !== dialectId)
+        : [...prev.selectedDialects, dialectId],
+    }));
+  };
+
+  const getDialectNames = (dialectIds: string[]) => {
+    if (dialectIds.length === 0) return "-";
+    return dialectIds
+      .map((id) => dialects.find((d) => d.id === id)?.name)
+      .filter(Boolean)
+      .join(", ");
+  };
+
+  const getGroupNames = (groupIds: string[]) => {
+    if (groupIds.length === 0) return "-";
+    return groupIds
+      .map((id) => groups.find((g) => g.id === id)?.name)
+      .filter(Boolean)
+      .join(", ");
   };
 
   return (
@@ -242,9 +399,8 @@ export default function Members() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Phone</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Dialect</TableHead>
-                <TableHead>Occupation</TableHead>
+                <TableHead>Groups</TableHead>
+                <TableHead>Dialects</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -254,9 +410,8 @@ export default function Members() {
                 <TableRow key={member.id}>
                   <TableCell className="font-medium">{member.name}</TableCell>
                   <TableCell>{member.phone}</TableCell>
-                  <TableCell>{member.location || "-"}</TableCell>
-                  <TableCell>{getDialectName(member.dialect_id)}</TableCell>
-                  <TableCell>{member.occupation || "-"}</TableCell>
+                  <TableCell>{getGroupNames(member.groups)}</TableCell>
+                  <TableCell>{getDialectNames(member.dialects)}</TableCell>
                   <TableCell>
                     <Badge variant={member.is_active ? "default" : "secondary"}>
                       {member.is_active ? "Active" : "Inactive"}
@@ -264,6 +419,14 @@ export default function Members() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openSmsDialog(member)}
+                        title="Send SMS"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -284,7 +447,7 @@ export default function Members() {
               ))}
               {members.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground">
                     No members found. Add your first member to get started.
                   </TableCell>
                 </TableRow>
@@ -295,7 +458,7 @@ export default function Members() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingMember ? "Edit Member" : "Add Member"}</DialogTitle>
             <DialogDescription>
@@ -336,26 +499,6 @@ export default function Members() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="dialect">Dialect</Label>
-                <Select
-                  value={formData.dialect_id}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, dialect_id: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select dialect" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dialects.map((dialect) => (
-                      <SelectItem key={dialect.id} value={dialect.id}>
-                        {dialect.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
                 <Label htmlFor="occupation">Occupation</Label>
                 <Input
                   id="occupation"
@@ -366,6 +509,55 @@ export default function Members() {
                   placeholder="Enter occupation"
                 />
               </div>
+
+              <div className="grid gap-2">
+                <Label>Groups</Label>
+                <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-3">
+                  {groups.map((group) => (
+                    <div key={group.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`group-${group.id}`}
+                        checked={formData.selectedGroups.includes(group.id)}
+                        onCheckedChange={() => toggleGroup(group.id)}
+                      />
+                      <label
+                        htmlFor={`group-${group.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {group.name}
+                      </label>
+                    </div>
+                  ))}
+                  {groups.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No groups available</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Dialects</Label>
+                <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-3">
+                  {dialects.map((dialect) => (
+                    <div key={dialect.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`dialect-${dialect.id}`}
+                        checked={formData.selectedDialects.includes(dialect.id)}
+                        onCheckedChange={() => toggleDialect(dialect.id)}
+                      />
+                      <label
+                        htmlFor={`dialect-${dialect.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {dialect.name}
+                      </label>
+                    </div>
+                  ))}
+                  {dialects.length === 0 && (
+                    <p className="text-sm text-muted-foreground">No dialects available</p>
+                  )}
+                </div>
+              </div>
+
               <div className="flex items-center space-x-2">
                 <Switch
                   id="is_active"
@@ -384,6 +576,38 @@ export default function Members() {
               <Button type="submit">{editingMember ? "Update" : "Add"}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSmsDialogOpen} onOpenChange={setIsSmsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send SMS to {smsRecipient?.name}</DialogTitle>
+            <DialogDescription>
+              Send a message to {smsRecipient?.phone}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label htmlFor="message">Message</Label>
+              <Textarea
+                id="message"
+                value={smsMessage}
+                onChange={(e) => setSmsMessage(e.target.value)}
+                placeholder="Type your message here..."
+                rows={6}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={closeSmsDialog}>
+              Cancel
+            </Button>
+            <Button onClick={handleSendSms} disabled={isSending}>
+              <Send className="mr-2 h-4 w-4" />
+              {isSending ? "Sending..." : "Send Message"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

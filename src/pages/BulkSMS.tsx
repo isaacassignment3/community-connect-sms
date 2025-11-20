@@ -53,11 +53,8 @@ export default function BulkSMS() {
       return;
     }
 
-    let query = supabase.from("members").select("id", { count: "exact" }).eq("is_active", true);
-
-    if (selectedDialects.length > 0) {
-      query = query.in("dialect_id", selectedDialects);
-    }
+    let memberIdsFromGroups: string[] = [];
+    let memberIdsFromDialects: string[] = [];
 
     if (selectedGroups.length > 0) {
       const { data: memberGroupData } = await supabase
@@ -65,16 +62,39 @@ export default function BulkSMS() {
         .select("member_id")
         .in("group_id", selectedGroups);
 
-      const memberIds = memberGroupData?.map((mg) => mg.member_id) || [];
-      if (memberIds.length > 0) {
-        query = query.in("id", memberIds);
-      } else {
-        setRecipientCount(0);
-        return;
-      }
+      memberIdsFromGroups = memberGroupData?.map((mg) => mg.member_id) || [];
     }
 
-    const { count } = await query;
+    if (selectedDialects.length > 0) {
+      const { data: memberDialectData } = await supabase
+        .from("member_dialects")
+        .select("member_id")
+        .in("dialect_id", selectedDialects);
+
+      memberIdsFromDialects = memberDialectData?.map((md) => md.member_id) || [];
+    }
+
+    let finalMemberIds: string[] = [];
+
+    if (selectedGroups.length > 0 && selectedDialects.length > 0) {
+      finalMemberIds = memberIdsFromGroups.filter(id => memberIdsFromDialects.includes(id));
+    } else if (selectedGroups.length > 0) {
+      finalMemberIds = memberIdsFromGroups;
+    } else {
+      finalMemberIds = memberIdsFromDialects;
+    }
+
+    if (finalMemberIds.length === 0) {
+      setRecipientCount(0);
+      return;
+    }
+
+    const { count } = await supabase
+      .from("members")
+      .select("id", { count: "exact" })
+      .eq("is_active", true)
+      .in("id", finalMemberIds);
+
     setRecipientCount(count || 0);
   };
 
