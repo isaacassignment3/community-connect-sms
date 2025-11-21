@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, MessageSquare, Languages, Send, TrendingUp, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -126,34 +127,34 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <a
-              href="/groups"
+            <Link
+              to="/groups"
               className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-colors hover:bg-muted"
             >
               <Users className="h-8 w-8 text-primary" />
               <span className="text-sm font-medium">Manage Groups</span>
-            </a>
-            <a
-              href="/members"
+            </Link>
+            <Link
+              to="/members"
               className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-colors hover:bg-muted"
             >
               <MessageSquare className="h-8 w-8 text-secondary" />
               <span className="text-sm font-medium">Manage Members</span>
-            </a>
-            <a
-              href="/bulk-sms"
+            </Link>
+            <Link
+              to="/bulk-sms"
               className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-colors hover:bg-muted"
             >
               <Send className="h-8 w-8 text-success" />
               <span className="text-sm font-medium">Send Bulk SMS</span>
-            </a>
-            <a
-              href="/history"
+            </Link>
+            <Link
+              to="/history"
               className="flex flex-col items-center gap-2 rounded-lg border p-4 transition-colors hover:bg-muted"
             >
               <Clock className="h-8 w-8 text-accent" />
               <span className="text-sm font-medium">View History</span>
-            </a>
+            </Link>
           </div>
         </CardContent>
       </Card>
