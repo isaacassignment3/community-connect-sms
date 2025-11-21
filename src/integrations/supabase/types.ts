@@ -56,6 +56,42 @@ export type Database = {
         }
         Relationships: []
       }
+      member_dialects: {
+        Row: {
+          created_at: string
+          dialect_id: string
+          id: string
+          member_id: string
+        }
+        Insert: {
+          created_at?: string
+          dialect_id: string
+          id?: string
+          member_id: string
+        }
+        Update: {
+          created_at?: string
+          dialect_id?: string
+          id?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_dialects_dialect_id_fkey"
+            columns: ["dialect_id"]
+            isOneToOne: false
+            referencedRelation: "dialects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_dialects_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_groups: {
         Row: {
           created_at: string
@@ -95,7 +131,6 @@ export type Database = {
       members: {
         Row: {
           created_at: string
-          dialect_id: string | null
           id: string
           is_active: boolean
           location: string | null
@@ -106,7 +141,6 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          dialect_id?: string | null
           id?: string
           is_active?: boolean
           location?: string | null
@@ -117,7 +151,6 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          dialect_id?: string | null
           id?: string
           is_active?: boolean
           location?: string | null
@@ -126,15 +159,7 @@ export type Database = {
           phone?: string
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "members_dialect_id_fkey"
-            columns: ["dialect_id"]
-            isOneToOne: false
-            referencedRelation: "dialects"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       message_history: {
         Row: {

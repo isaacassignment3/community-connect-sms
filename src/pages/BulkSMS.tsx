@@ -129,6 +129,57 @@ export default function BulkSMS() {
     setIsSending(true);
 
     try {
+      // Get member IDs
+      let memberIdsFromGroups: string[] = [];
+      let memberIdsFromDialects: string[] = [];
+
+      if (selectedGroups.length > 0) {
+        const { data: memberGroupData } = await supabase
+          .from("member_groups")
+          .select("member_id")
+          .in("group_id", selectedGroups);
+
+        memberIdsFromGroups = memberGroupData?.map((mg) => mg.member_id) || [];
+      }
+
+      if (selectedDialects.length > 0) {
+        const { data: memberDialectData } = await supabase
+          .from("member_dialects")
+          .select("member_id")
+          .in("dialect_id", selectedDialects);
+
+        memberIdsFromDialects = memberDialectData?.map((md) => md.member_id) || [];
+      }
+
+      let finalMemberIds: string[] = [];
+
+      if (selectedGroups.length > 0 && selectedDialects.length > 0) {
+        finalMemberIds = memberIdsFromGroups.filter(id => memberIdsFromDialects.includes(id));
+      } else if (selectedGroups.length > 0) {
+        finalMemberIds = memberIdsFromGroups;
+      } else {
+        finalMemberIds = memberIdsFromDialects;
+      }
+
+      // Get phone numbers of active members
+      const { data: membersData } = await supabase
+        .from("members")
+        .select("phone")
+        .eq("is_active", true)
+        .in("id", finalMemberIds);
+
+      const phoneNumbers = membersData?.map(m => m.phone) || [];
+
+      // Call the edge function to send SMS
+      const { data: smsResult, error: smsError } = await supabase.functions.invoke('send-sms', {
+        body: {
+          message: message,
+          recipients: phoneNumbers,
+        },
+      });
+
+      if (smsError) throw smsError;
+
       const groupNames = groups
         .filter((g) => selectedGroups.includes(g.id))
         .map((g) => g.name);
@@ -136,26 +187,29 @@ export default function BulkSMS() {
         .filter((d) => selectedDialects.includes(d.id))
         .map((d) => d.name);
 
+      // Save to history
       await supabase.from("message_history").insert({
         message_text: message,
         recipient_count: recipientCount,
         status: "sent",
         groups: groupNames,
         dialects: dialectNames,
+        message_id: smsResult?.messageId || null,
       });
 
       toast({
         title: "Success",
-        description: `Message queued for ${recipientCount} recipients`,
+        description: `Message sent to ${recipientCount} recipients`,
       });
 
       setMessage("");
       setSelectedGroups([]);
       setSelectedDialects([]);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error sending SMS:', error);
       toast({
         title: "Error",
-        description: "Failed to send message",
+        description: error.message || "Failed to send message",
         variant: "destructive",
       });
     } finally {

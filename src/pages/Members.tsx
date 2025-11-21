@@ -32,10 +32,10 @@ interface Member {
   name: string;
   location: string | null;
   phone: string;
-  dialect_id: string | null;
   occupation: string | null;
   is_active: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 interface Dialect {
