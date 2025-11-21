@@ -317,12 +317,25 @@ export default function Members() {
     setIsSending(true);
 
     try {
+      const { data: smsResult, error: smsError } = await supabase.functions.invoke(
+        "send-sms",
+        {
+          body: {
+            message: smsMessage,
+            recipients: [smsRecipient.phone],
+          },
+        }
+      );
+
+      if (smsError) throw smsError;
+
       await supabase.from("message_history").insert({
         message_text: smsMessage,
         recipient_count: 1,
         status: "sent",
         groups: null,
         dialects: null,
+        message_id: smsResult?.messageId || null,
       });
 
       toast({
@@ -330,10 +343,11 @@ export default function Members() {
         description: `Message sent to ${smsRecipient.name}`,
       });
       closeSmsDialog();
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error sending SMS:", error);
       toast({
         title: "Error",
-        description: "Failed to send message",
+        description: error.message || "Failed to send message",
         variant: "destructive",
       });
     } finally {
