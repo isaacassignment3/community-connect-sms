@@ -12,7 +12,7 @@ import { Plus, Pencil, Trash2, Copy } from "lucide-react";
 
 interface SMSTemplate {
   id: string;
-  title: string;
+  title: string;  // Changed from `name` to `title`
   content: string;
   created_at: string;
   updated_at: string;
@@ -22,7 +22,7 @@ const SMSTemplates = () => {
   const [templates, setTemplates] = useState<SMSTemplate[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<SMSTemplate | null>(null);
-  const [formData, setFormData] = useState({ title: "", content: "" });
+  const [formData, setFormData] = useState({ title: "", content: "" }); // Use `title` instead of `name`
   const { toast } = useToast();
 
   useEffect(() => {
@@ -79,7 +79,7 @@ const SMSTemplates = () => {
 
       setIsDialogOpen(false);
       setEditingTemplate(null);
-      setFormData({ name: "", content: "" });
+      setFormData({ title: "", content: "" });
       fetchTemplates();
     } catch (error) {
       console.error("Error saving template:", error);
@@ -93,7 +93,7 @@ const SMSTemplates = () => {
 
   const handleEdit = (template: SMSTemplate) => {
     setEditingTemplate(template);
-    setFormData({ title: template.title, content: template.content });
+    setFormData({ title: template.title, content: template.content });  // Use `title` instead of `name`
     setIsDialogOpen(true);
   };
 
@@ -167,7 +167,7 @@ const SMSTemplates = () => {
             <form onSubmit={handleSubmit}>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Template Name</Label>
+                  <Label htmlFor="title">Template Title</Label>
                   <Input
                     id="title"
                     value={formData.title}
@@ -234,7 +234,7 @@ const SMSTemplates = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead>Title</TableHead> {/* Changed to `Title` */}
                   <TableHead>Content</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -244,7 +244,7 @@ const SMSTemplates = () => {
                 {templates.map((template) => (
                   <TableRow key={template.id}>
                     <TableCell className="font-medium">
-                      {template.title}
+                      {template.title} {/* Display `title` instead of `name` */}
                     </TableCell>
                     <TableCell className="max-w-md truncate">
                       {template.content}
