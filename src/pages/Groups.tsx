@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Send } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -31,11 +31,21 @@ interface Group {
   created_at: string;
 }
 
+interface Member {
+  id: string;
+  name: string;
+  phone: string;
+}
+
 export default function Groups() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [formData, setFormData] = useState({ name: "", description: "" });
+  const [isSmsDialogOpen, setIsSmsDialogOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [smsMessage, setSmsMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -141,6 +151,119 @@ export default function Groups() {
     setFormData({ name: "", description: "" });
   };
 
+  const openSmsDialog = (group: Group) => {
+    setSelectedGroup(group);
+    setSmsMessage("");
+    setIsSmsDialogOpen(true);
+  };
+
+  const closeSmsDialog = () => {
+    setIsSmsDialogOpen(false);
+    setSelectedGroup(null);
+    setSmsMessage("");
+  };
+
+  const handleSendSms = async () => {
+    if (!selectedGroup || !smsMessage.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a message",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSending(true);
+
+    try {
+      const { data: memberGroups, error: memberError } = await supabase
+        .from("member_groups")
+        .select(`
+          member_id,
+          members (
+            id,
+            name,
+            phone
+          )
+        `)
+        .eq("group_id", selectedGroup.id);
+
+      if (memberError) throw memberError;
+
+      if (!memberGroups || memberGroups.length === 0) {
+        toast({
+          title: "Error",
+          description: "No members found in this group",
+          variant: "destructive",
+        });
+        setIsSending(false);
+        return;
+      }
+
+      const recipients = memberGroups
+        .map((mg: any) => mg.members?.phone)
+        .filter((phone: string | undefined) => phone);
+
+      if (recipients.length === 0) {
+        toast({
+          title: "Error",
+          description: "No valid phone numbers found in this group",
+          variant: "destructive",
+        });
+        setIsSending(false);
+        return;
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Error",
+          description: "Please log in to send SMS",
+          variant: "destructive",
+        });
+        setIsSending(false);
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            message: smsMessage,
+            recipients: recipients,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to send SMS");
+      }
+
+      toast({
+        title: "Success",
+        description: `SMS sent to ${recipients.length} member(s) in ${selectedGroup.name}`,
+      });
+
+      closeSmsDialog();
+    } catch (error: any) {
+      console.error("SMS sending error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send SMS",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -177,6 +300,14 @@ export default function Groups() {
                   <TableCell>{new Date(group.created_at).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openSmsDialog(group)}
+                        title="Send SMS to group"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -251,6 +382,41 @@ export default function Groups() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSmsDialogOpen} onOpenChange={setIsSmsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send SMS to {selectedGroup?.name}</DialogTitle>
+            <DialogDescription>
+              Compose a message to send to all members in this group
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="sms-message">Message *</Label>
+              <Textarea
+                id="sms-message"
+                value={smsMessage}
+                onChange={(e) => setSmsMessage(e.target.value)}
+                placeholder="Type your message here..."
+                rows={5}
+                maxLength={160}
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                {smsMessage.length}/160 characters
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={closeSmsDialog} disabled={isSending}>
+              Cancel
+            </Button>
+            <Button onClick={handleSendSms} disabled={isSending || !smsMessage.trim()}>
+              {isSending ? "Sending..." : "Send SMS"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
