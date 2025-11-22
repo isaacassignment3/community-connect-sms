@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Users } from "lucide-react";
+import { Send, Users, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Group {
   id: string;
@@ -18,9 +19,16 @@ interface Dialect {
   name: string;
 }
 
+interface SMSTemplate {
+  id: string;
+  name: string;
+  content: string;
+}
+
 export default function BulkSMS() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [dialects, setDialects] = useState<Dialect[]>([]);
+  const [templates, setTemplates] = useState<SMSTemplate[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
   const [selectedDialects, setSelectedDialects] = useState<string[]>([]);
   const [message, setMessage] = useState("");
@@ -31,6 +39,7 @@ export default function BulkSMS() {
   useEffect(() => {
     fetchGroups();
     fetchDialects();
+    fetchTemplates();
   }, []);
 
   useEffect(() => {
@@ -45,6 +54,18 @@ export default function BulkSMS() {
   const fetchDialects = async () => {
     const { data } = await supabase.from("dialects").select("*").order("name");
     setDialects(data || []);
+  };
+
+  const fetchTemplates = async () => {
+    const { data } = await supabase.from("sms_templates").select("*").order("name");
+    setTemplates(data || []);
+  };
+
+  const handleTemplateSelect = (templateId: string) => {
+    const template = templates.find(t => t.id === templateId);
+    if (template) {
+      setMessage(template.content);
+    }
   };
 
   const calculateRecipients = async () => {
@@ -316,6 +337,26 @@ export default function BulkSMS() {
           <CardDescription>Write your message below</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {templates.length > 0 && (
+            <div>
+              <Label htmlFor="template">Use Template (Optional)</Label>
+              <Select onValueChange={handleTemplateSelect}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Select a template..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((template) => (
+                    <SelectItem key={template.id} value={template.id}>
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        {template.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div>
             <Label htmlFor="message">Message</Label>
             <Textarea
