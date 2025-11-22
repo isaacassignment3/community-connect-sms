@@ -12,7 +12,7 @@ import { Plus, Pencil, Trash2, Copy } from "lucide-react";
 
 interface SMSTemplate {
   id: string;
-  title: string;  // Change from name to title
+  1title: string;  // Change from name to title
   content: string;
   created_at: string;
   updated_at: string;
