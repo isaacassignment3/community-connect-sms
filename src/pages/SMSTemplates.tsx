@@ -169,10 +169,10 @@ const SMSTemplates = () => {
                 <div className="space-y-2">
                   <Label htmlFor="name">Template Name</Label>
                   <Input
-                    id="name"
-                    value={formData.name}
+                    id="title"
+                    value={formData.title}
                     onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
+                      setFormData({ ...formData, title: e.target.value })
                     }
                     placeholder="e.g., Emergency Alert"
                     required
