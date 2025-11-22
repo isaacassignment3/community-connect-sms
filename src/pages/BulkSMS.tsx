@@ -207,9 +207,19 @@ export default function BulkSMS() {
       setSelectedDialects([]);
     } catch (error: any) {
       console.error('Error sending SMS:', error);
+      let errorMessage = "Failed to send message";
+
+      if (error.context?.status === 400) {
+        errorMessage = "Hubtel credentials not configured. Please check Settings.";
+      } else if (error.context?.status === 500) {
+        errorMessage = "Edge function error. Check Hubtel API credentials in Settings.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: "Error",
-        description: error.message || "Failed to send message",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
