@@ -12,7 +12,7 @@ import { Plus, Pencil, Trash2, Copy } from "lucide-react";
 
 interface SMSTemplate {
   id: string;
-  name: string;
+  title: string;
   content: string;
   created_at: string;
   updated_at: string;
@@ -22,7 +22,7 @@ const SMSTemplates = () => {
   const [templates, setTemplates] = useState<SMSTemplate[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<SMSTemplate | null>(null);
-  const [formData, setFormData] = useState({ name: "", content: "" });
+  const [formData, setFormData] = useState({ title: "", content: "" });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -93,7 +93,7 @@ const SMSTemplates = () => {
 
   const handleEdit = (template: SMSTemplate) => {
     setEditingTemplate(template);
-    setFormData({ name: template.name, content: template.content });
+    setFormData({ title: template.title, content: template.content });
     setIsDialogOpen(true);
   };
 
@@ -133,7 +133,7 @@ const SMSTemplates = () => {
 
   const openNewTemplateDialog = () => {
     setEditingTemplate(null);
-    setFormData({ name: "", content: "" });
+    setFormData({ title: "", content: "" });
     setIsDialogOpen(true);
   };
 
