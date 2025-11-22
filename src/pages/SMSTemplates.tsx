@@ -12,7 +12,7 @@ import { Plus, Pencil, Trash2, Copy } from "lucide-react";
 
 interface SMSTemplate {
   id: string;
-  1title: string;  // Change from name to title
+  name: string;
   content: string;
   created_at: string;
   updated_at: string;
@@ -22,7 +22,7 @@ const SMSTemplates = () => {
   const [templates, setTemplates] = useState<SMSTemplate[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<SMSTemplate | null>(null);
-  const [formData, setFormData] = useState({ title: "", content: "" });
+  const [formData, setFormData] = useState({ name: "", content: "" });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -79,7 +79,7 @@ const SMSTemplates = () => {
 
       setIsDialogOpen(false);
       setEditingTemplate(null);
-      setFormData({ title: "", content: "" });
+      setFormData({ name: "", content: "" });
       fetchTemplates();
     } catch (error) {
       console.error("Error saving template:", error);
@@ -93,7 +93,7 @@ const SMSTemplates = () => {
 
   const handleEdit = (template: SMSTemplate) => {
     setEditingTemplate(template);
-    setFormData({ title: template.title, content: template.content });
+    setFormData({ name: template.name, content: template.content });
     setIsDialogOpen(true);
   };
 
@@ -133,7 +133,7 @@ const SMSTemplates = () => {
 
   const openNewTemplateDialog = () => {
     setEditingTemplate(null);
-    setFormData({ title: "", content: "" });
+    setFormData({ name: "", content: "" });
     setIsDialogOpen(true);
   };
 
@@ -167,12 +167,12 @@ const SMSTemplates = () => {
             <form onSubmit={handleSubmit}>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="title">Template Title</Label>
+                  <Label htmlFor="name">Template Name</Label>
                   <Input
-                    id="title"
-                    value={formData.title}
+                    id="name"
+                    value={formData.name}
                     onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
+                      setFormData({ ...formData, name: e.target.value })
                     }
                     placeholder="e.g., Emergency Alert"
                     required
@@ -234,7 +234,7 @@ const SMSTemplates = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead> {/* Display Title */}
+                  <TableHead>Name</TableHead>
                   <TableHead>Content</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -244,7 +244,7 @@ const SMSTemplates = () => {
                 {templates.map((template) => (
                   <TableRow key={template.id}>
                     <TableCell className="font-medium">
-                      {template.title} {/* Use Title instead of Name */}
+                      {template.name}
                     </TableCell>
                     <TableCell className="max-w-md truncate">
                       {template.content}
