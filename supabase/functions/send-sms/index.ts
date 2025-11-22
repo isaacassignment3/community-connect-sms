@@ -118,23 +118,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const basicAuth = btoa(`${clientId}:${clientSecret}`);
-
-    const hubtelBody = {
-      From: senderId,
-      To: validNumbers.join(','),
-      Content: message
-    };
-
     console.log('Sending to valid numbers:', validNumbers.join(','));
 
-    const hubtelResponse = await fetch('https://sms.hubtel.com/v1/messages/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${basicAuth}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(hubtelBody)
+    const hubtelUrl = `https://sms.hubtel.com/v1/messages/send?clientsecret=${encodeURIComponent(clientSecret)}&clientid=${encodeURIComponent(clientId)}&from=${encodeURIComponent(senderId)}&to=${encodeURIComponent(validNumbers.join(','))}&content=${encodeURIComponent(message)}`;
+
+    const hubtelResponse = await fetch(hubtelUrl, {
+      method: 'GET'
     });
 
     const responseData = await hubtelResponse.json();
