@@ -13,7 +13,6 @@ interface SendSMSRequest {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -21,12 +20,17 @@ serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     );
 
     console.log('Fetching Hubtel settings from database...');
 
-    // Get Hubtel settings from database
     const { data: settings, error: settingsError } = await supabaseClient
       .from('settings')
       .select('*')
@@ -61,7 +65,6 @@ serve(async (req) => {
       );
     }
 
-    // Parse request body
     const { message, recipients }: SendSMSRequest = await req.json();
 
     if (!message || !recipients || recipients.length === 0) {
@@ -73,7 +76,6 @@ serve(async (req) => {
 
     console.log(`Sending SMS to ${recipients.length} recipient(s)`);
 
-    // Send SMS via Hubtel API
     const basicAuth = btoa(`${client_id}:${client_secret}`);
     
     const hubtelBody = {
