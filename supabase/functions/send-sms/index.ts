@@ -24,11 +24,22 @@ Deno.serve(async (req: Request) => {
     const clientId = Deno.env.get('HUBTEL_CLIENT_ID');
     const clientSecret = Deno.env.get('HUBTEL_CLIENT_SECRET');
 
+    console.log('Checking Hubtel credentials...');
+    console.log('HUBTEL_SENDER_ID present:', !!senderId);
+    console.log('HUBTEL_CLIENT_ID present:', !!clientId);
+    console.log('HUBTEL_CLIENT_SECRET present:', !!clientSecret);
+
     if (!senderId || !clientId || !clientSecret) {
       console.error('Missing Hubtel credentials in environment variables');
+      const missingVars = [];
+      if (!senderId) missingVars.push('HUBTEL_SENDER_ID');
+      if (!clientId) missingVars.push('HUBTEL_CLIENT_ID');
+      if (!clientSecret) missingVars.push('HUBTEL_CLIENT_SECRET');
+
       return new Response(
         JSON.stringify({
-          error: 'Hubtel API credentials not configured. Please configure HUBTEL_SENDER_ID, HUBTEL_CLIENT_ID, and HUBTEL_CLIENT_SECRET in edge function secrets.'
+          error: `Missing environment variables: ${missingVars.join(', ')}. Please check edge function secrets configuration.`,
+          missingVars
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

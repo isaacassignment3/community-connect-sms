@@ -199,7 +199,10 @@ export default function BulkSMS() {
         },
       });
 
-      if (smsError) throw smsError;
+      if (smsError) {
+        console.error('Edge function error:', smsError);
+        throw smsError;
+      }
 
       const groupNames = groups
         .filter((g) => selectedGroups.includes(g.id))
@@ -228,12 +231,16 @@ export default function BulkSMS() {
       setSelectedDialects([]);
     } catch (error: any) {
       console.error('Error sending SMS:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+
       let errorMessage = "Failed to send message";
 
-      if (error.context?.status === 400) {
-        errorMessage = "Hubtel credentials not configured. Please check Settings.";
+      if (error.message?.includes('Missing environment variables')) {
+        errorMessage = error.message;
+      } else if (error.context?.status === 400) {
+        errorMessage = error.message || "Failed to send SMS. Please check your Hubtel credentials.";
       } else if (error.context?.status === 500) {
-        errorMessage = "Edge function error. Check Hubtel API credentials in Settings.";
+        errorMessage = "Edge function error. Please check the function logs.";
       } else if (error.message) {
         errorMessage = error.message;
       }
