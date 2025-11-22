@@ -55,12 +55,27 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(`Sending SMS to ${recipients.length} recipient(s)`);
+    console.log('Raw recipients:', recipients);
+
+    const formattedRecipients = recipients.map(phone => {
+      let cleaned = phone.replace(/\D/g, '');
+
+      if (cleaned.startsWith('0')) {
+        cleaned = '233' + cleaned.substring(1);
+      } else if (!cleaned.startsWith('233')) {
+        cleaned = '233' + cleaned;
+      }
+
+      return cleaned;
+    });
+
+    console.log('Formatted recipients:', formattedRecipients);
 
     const basicAuth = btoa(`${clientId}:${clientSecret}`);
 
     const hubtelBody = {
       From: senderId,
-      To: recipients.join(','),
+      To: formattedRecipients.join(','),
       Content: message,
     };
 
