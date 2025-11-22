@@ -6,7 +6,8 @@ import {
   Send, 
   History, 
   Settings,
-  AlertTriangle
+  AlertTriangle,
+  FileText
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -29,6 +30,7 @@ const menuItems = [
   { title: "Groups", url: "/groups", icon: Users },
   { title: "Dialects", url: "/dialects", icon: Languages },
   { title: "Members", url: "/members", icon: MessageSquare },
+  { title: "SMS Templates", url: "/sms-templates", icon: FileText },
   { title: "Bulk SMS", url: "/bulk-sms", icon: Send },
   { title: "History", url: "/history", icon: History },
   { title: "Settings", url: "/settings", icon: Settings },
