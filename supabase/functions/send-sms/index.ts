@@ -21,8 +21,10 @@ serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     );
+
+    console.log('Fetching Hubtel settings from database...');
 
     // Get Hubtel settings from database
     const { data: settings, error: settingsError } = await supabaseClient
@@ -40,7 +42,7 @@ serve(async (req) => {
     }
 
     if (!settings) {
-      console.error('No settings found');
+      console.error('No settings found in database');
       return new Response(
         JSON.stringify({ error: 'Hubtel API credentials not configured. Please add credentials in Settings.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -50,7 +52,7 @@ serve(async (req) => {
     const { sender_id, client_id, client_secret } = settings;
 
     if (!sender_id || !client_id || !client_secret) {
-      console.error('Incomplete credentials:', { sender_id: !!sender_id, client_id: !!client_id, client_secret: !!client_secret });
+      console.error('Incomplete credentials');
       return new Response(
         JSON.stringify({ 
           error: 'Incomplete Hubtel API credentials. All fields (Sender ID, Client ID, Client Secret) are required.' 
@@ -63,7 +65,6 @@ serve(async (req) => {
     const { message, recipients }: SendSMSRequest = await req.json();
 
     if (!message || !recipients || recipients.length === 0) {
-      console.error('Invalid request:', { message: !!message, recipients: recipients?.length });
       return new Response(
         JSON.stringify({ error: 'Message and recipients array are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -71,7 +72,6 @@ serve(async (req) => {
     }
 
     console.log(`Sending SMS to ${recipients.length} recipient(s)`);
-    console.log('Recipients:', recipients);
 
     // Send SMS via Hubtel API
     const basicAuth = btoa(`${client_id}:${client_secret}`);
@@ -81,8 +81,6 @@ serve(async (req) => {
       To: recipients.join(','),
       Content: message,
     };
-
-    console.log('Sending to Hubtel API with body:', hubtelBody);
 
     const hubtelResponse = await fetch('https://sms.hubtel.com/v1/messages/send', {
       method: 'POST',
@@ -95,7 +93,7 @@ serve(async (req) => {
 
     const responseData = await hubtelResponse.json();
     
-    console.log(`Hubtel API response status: ${hubtelResponse.status}`, responseData);
+    console.log(`Hubtel API response status: ${hubtelResponse.status}`);
 
     if (!hubtelResponse.ok) {
       console.error('Hubtel API error:', responseData);
@@ -109,7 +107,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('SMS sent successfully:', responseData);
+    console.log('SMS sent successfully');
 
     return new Response(
       JSON.stringify({ 
@@ -122,7 +120,7 @@ serve(async (req) => {
     );
 
   } catch (error: any) {
-    console.error('Error in send-sms function:', error);
+    console.error('Error in send-sms function:', error.message);
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
