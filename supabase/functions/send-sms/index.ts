@@ -60,13 +60,13 @@ Deno.serve(async (req: Request) => {
     const formattedRecipients = recipients.map(phone => {
       let cleaned = phone.replace(/\D/g, '');
 
-      if (cleaned.startsWith('0')) {
-        cleaned = '233' + cleaned.substring(1);
-      } else if (!cleaned.startsWith('233')) {
-        cleaned = '233' + cleaned;
+      if (cleaned.startsWith('233')) {
+        return cleaned;
+      } else if (cleaned.startsWith('0')) {
+        return '233' + cleaned.substring(1);
+      } else {
+        return '233' + cleaned;
       }
-
-      return cleaned;
     });
 
     console.log('Formatted recipients:', formattedRecipients);
