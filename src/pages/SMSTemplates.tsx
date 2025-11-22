@@ -12,7 +12,7 @@ import { Plus, Pencil, Trash2, Copy } from "lucide-react";
 
 interface SMSTemplate {
   id: string;
-  title: string;  // Changed from `name` to `title`
+  title: string;  // Change from name to title
   content: string;
   created_at: string;
   updated_at: string;
@@ -22,7 +22,7 @@ const SMSTemplates = () => {
   const [templates, setTemplates] = useState<SMSTemplate[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<SMSTemplate | null>(null);
-  const [formData, setFormData] = useState({ title: "", content: "" }); // Use `title` instead of `name`
+  const [formData, setFormData] = useState({ title: "", content: "" });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -93,7 +93,7 @@ const SMSTemplates = () => {
 
   const handleEdit = (template: SMSTemplate) => {
     setEditingTemplate(template);
-    setFormData({ title: template.title, content: template.content });  // Use `title` instead of `name`
+    setFormData({ title: template.title, content: template.content });
     setIsDialogOpen(true);
   };
 
@@ -234,7 +234,7 @@ const SMSTemplates = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Title</TableHead> {/* Changed to `Title` */}
+                  <TableHead>Title</TableHead> {/* Display Title */}
                   <TableHead>Content</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -244,7 +244,7 @@ const SMSTemplates = () => {
                 {templates.map((template) => (
                   <TableRow key={template.id}>
                     <TableCell className="font-medium">
-                      {template.title} {/* Display `title` instead of `name` */}
+                      {template.title} {/* Use Title instead of Name */}
                     </TableCell>
                     <TableCell className="max-w-md truncate">
                       {template.content}
