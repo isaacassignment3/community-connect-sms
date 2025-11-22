@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Groups from "./pages/Groups";
 import Dialects from "./pages/Dialects";
 import Members from "./pages/Members";
+import SMSTemplates from "./pages/SMSTemplates";
 import BulkSMS from "./pages/BulkSMS";
 import History from "./pages/History";
 import Settings from "./pages/Settings";
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/groups" element={<Groups />} />
             <Route path="/dialects" element={<Dialects />} />
             <Route path="/members" element={<Members />} />
+            <Route path="/sms-templates" element={<SMSTemplates />} />
             <Route path="/bulk-sms" element={<BulkSMS />} />
             <Route path="/history" element={<History />} />
             <Route path="/settings" element={<Settings />} />
