@@ -74,71 +74,49 @@ Deno.serve(async (req: Request) => {
 
     const basicAuth = btoa(`${clientId}:${clientSecret}`);
 
-    const results = [];
-    const errors = [];
+    const toField = formattedRecipients.join(',');
+    console.log('Final "To" field value:', toField);
+    console.log('First recipient sample:', formattedRecipients[0]);
+    console.log('Total recipients:', formattedRecipients.length);
 
-    for (const recipient of formattedRecipients) {
-      console.log(`Sending to individual recipient: ${recipient}`);
+    const hubtelBody = {
+      From: senderId,
+      To: toField,
+      Content: message,
+    };
 
-      const hubtelBody = {
-        From: senderId,
-        To: recipient,
-        Content: message,
-      };
+    console.log('Hubtel request body:', JSON.stringify(hubtelBody));
 
-      console.log('Hubtel request body:', JSON.stringify(hubtelBody));
+    const hubtelResponse = await fetch('https://sms.hubtel.com/v1/messages/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${basicAuth}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(hubtelBody),
+    });
 
-      const hubtelResponse = await fetch('https://sms.hubtel.com/v1/messages/send', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Basic ${basicAuth}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(hubtelBody),
-      });
+    const responseData = await hubtelResponse.json();
+    console.log('Hubtel API response:', JSON.stringify(responseData));
 
-      const responseData = await hubtelResponse.json();
-      console.log(`Hubtel API response for ${recipient}:`, JSON.stringify(responseData));
-
-      if (hubtelResponse.ok) {
-        results.push({
-          recipient,
-          success: true,
-          messageId: responseData.MessageId || responseData.message_id,
-          response: responseData
-        });
-      } else {
-        errors.push({
-          recipient,
-          success: false,
-          error: responseData
-        });
-      }
-    }
-
-    console.log(`Successfully sent: ${results.length}, Failed: ${errors.length}`);
-
-    if (errors.length > 0 && results.length === 0) {
+    if (hubtelResponse.ok) {
       return new Response(
         JSON.stringify({
-          error: 'All SMS sends failed',
-          results: errors
+          success: true,
+          totalRecipients: formattedRecipients.length,
+          response: responseData,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } else {
+      return new Response(
+        JSON.stringify({
+          error: 'SMS sending failed',
+          response: responseData,
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        totalRecipients: recipients.length,
-        successCount: results.length,
-        failureCount: errors.length,
-        results,
-        errors: errors.length > 0 ? errors : undefined
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
 
   } catch (error: any) {
     console.error('Error in send-sms function:', error.message);
