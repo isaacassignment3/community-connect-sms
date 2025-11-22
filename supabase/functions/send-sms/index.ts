@@ -1,10 +1,9 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
 interface SendSMSRequest {
@@ -12,54 +11,24 @@ interface SendSMSRequest {
   recipients: string[];
 }
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 200,
+      headers: corsHeaders,
+    });
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    const senderId = Deno.env.get('HUBTEL_SENDER_ID');
+    const clientId = Deno.env.get('HUBTEL_CLIENT_ID');
+    const clientSecret = Deno.env.get('HUBTEL_CLIENT_SECRET');
 
-    console.log('Fetching Hubtel settings from database...');
-
-    const { data: settings, error: settingsError } = await supabaseClient
-      .from('settings')
-      .select('*')
-      .limit(1)
-      .maybeSingle();
-
-    if (settingsError) {
-      console.error('Settings query error:', settingsError);
+    if (!senderId || !clientId || !clientSecret) {
+      console.error('Missing Hubtel credentials in environment variables');
       return new Response(
-        JSON.stringify({ error: 'Failed to retrieve settings', details: settingsError.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!settings) {
-      console.error('No settings found in database');
-      return new Response(
-        JSON.stringify({ error: 'Hubtel API credentials not configured. Please add credentials in Settings.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { sender_id, client_id, client_secret } = settings;
-
-    if (!sender_id || !client_id || !client_secret) {
-      console.error('Incomplete credentials');
-      return new Response(
-        JSON.stringify({ 
-          error: 'Incomplete Hubtel API credentials. All fields (Sender ID, Client ID, Client Secret) are required.' 
+        JSON.stringify({
+          error: 'Hubtel API credentials not configured. Please configure HUBTEL_SENDER_ID, HUBTEL_CLIENT_ID, and HUBTEL_CLIENT_SECRET in edge function secrets.'
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -76,10 +45,10 @@ serve(async (req) => {
 
     console.log(`Sending SMS to ${recipients.length} recipient(s)`);
 
-    const basicAuth = btoa(`${client_id}:${client_secret}`);
-    
+    const basicAuth = btoa(`${clientId}:${clientSecret}`);
+
     const hubtelBody = {
-      From: sender_id,
+      From: senderId,
       To: recipients.join(','),
       Content: message,
     };
@@ -94,13 +63,13 @@ serve(async (req) => {
     });
 
     const responseData = await hubtelResponse.json();
-    
+
     console.log(`Hubtel API response status: ${hubtelResponse.status}`);
 
     if (!hubtelResponse.ok) {
       console.error('Hubtel API error:', responseData);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Failed to send SMS via Hubtel API',
           details: responseData,
           status: hubtelResponse.status
@@ -112,8 +81,8 @@ serve(async (req) => {
     console.log('SMS sent successfully');
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         messageId: responseData.MessageId || responseData.message_id,
         recipientCount: recipients.length,
         response: responseData
@@ -124,9 +93,9 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('Error in send-sms function:', error.message);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: 'Internal server error',
-        details: error.message 
+        details: error.message
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
