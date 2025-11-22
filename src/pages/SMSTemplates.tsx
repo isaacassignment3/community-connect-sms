@@ -244,7 +244,7 @@ const SMSTemplates = () => {
                 {templates.map((template) => (
                   <TableRow key={template.id}>
                     <TableCell className="font-medium">
-                      {template.name}
+                      {template.title}
                     </TableCell>
                     <TableCell className="max-w-md truncate">
                       {template.content}
