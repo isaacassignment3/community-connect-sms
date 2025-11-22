@@ -70,14 +70,20 @@ Deno.serve(async (req: Request) => {
     });
 
     console.log('Formatted recipients:', formattedRecipients);
+    console.log('Formatted recipients length check:', formattedRecipients.map(r => `${r} (${r.length} digits)`));
 
     const basicAuth = btoa(`${clientId}:${clientSecret}`);
 
+    const toField = formattedRecipients.join(',');
+    console.log('Final "To" field value:', toField);
+
     const hubtelBody = {
       From: senderId,
-      To: formattedRecipients.join(','),
+      To: toField,
       Content: message,
     };
+
+    console.log('Hubtel request body:', JSON.stringify(hubtelBody));
 
     const hubtelResponse = await fetch('https://sms.hubtel.com/v1/messages/send', {
       method: 'POST',
